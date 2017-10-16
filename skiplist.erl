@@ -1,106 +1,81 @@
+%%%-------------------------------------------------------------------
+%%% @author fox
+%%% @copyright (C) 2017, <COMPANY>
+%%% @doc
+%%% indexable skip list, can insert duplicated value
+%%% @end
+%%% Created : 16. 十月 2017 14:16
+%%%-------------------------------------------------------------------
 -module(skiplist).
 -author("fox").
 
 %% API
 -export([
-  init/0, new/0,
-  free/1,
+  init/1,
+  new/0, free/1,
   insert/3, delete/3, update/4,
   to_list/1,
   range/3, range_with_score/3, range_by_score/3,
   index_of_score/2, at/2,
-  size/1,
-  test/0]).
+  size/1]).
 
-init() ->
-  erlang:load_nif("./nif_skiplist", 0).
+-type skiplist() :: non_neg_integer().
+-type score() :: integer().
+-type value() :: integer().
 
+-spec init(Path) -> ok | Error when
+  Path :: string(),
+  Error :: any().
+init(Path) ->
+  erlang:load_nif(Path, 0).
+
+-spec new() -> skiplist().
 new() ->
   erlang:nif_error(undef).
 
+-spec free(skiplist()) -> ok.
 free(_List) ->
   erlang:nif_error(undef).
 
+-spec insert(skiplist(), score(), value()) -> 0.
 insert(_List, _Score, _Value) ->
   erlang:nif_error(undef).
 
+-spec delete(skiplist(), score(), value()) ->
+  0 | 1. %% 0 success, 1 fail
 delete(_List, _Score, _Value) ->
   erlang:nif_error(undef).
 
+-spec update(skiplist(), score(), value(), score()) -> 0.
 update(_List, _Score, _Value, _OldScore) ->
   erlang:nif_error(undef).
 
+-spec to_list(skiplist()) -> [{score(), value()}].
 to_list(_List) ->
   erlang:nif_error(undef).
 
+-spec size(skiplist()) -> non_neg_integer().
 size(_List) ->
   erlang:nif_error(undef).
 
+-spec index_of_score(skiplist(), score()) -> non_neg_integer().
 index_of_score(_List, _Score) ->
   erlang:nif_error(undef).
 
+-spec at(skiplist(), non_neg_integer()) -> error | {score(), value()}.
 at(_List, _Index) ->
   erlang:nif_error(undef).
 
+-spec range(skiplist(), non_neg_integer(), non_neg_integer()) -> [value()].
 range(_List, _Start, _Len) ->
   erlang:nif_error(undef).
 
+-spec range_with_score(skiplist(), non_neg_integer(), non_neg_integer()) ->
+  [{score(), value()}].
 range_with_score(_List, _Start, _Len) ->
   erlang:nif_error(undef).
 
+-spec range_by_score(skiplist(), score(), score()) ->
+  {StartIndex :: non_neg_integer(), [{score(), value()}]}.
 range_by_score(_List, _Score1, _Score2) ->
   erlang:nif_error(undef).
-
-test() ->
-  init(),
-  A = new(),
-  insert(A, 10, 10),
-  insert(A, 5, 5),
-  insert(A, 8, 8),
-  insert(A, 1, 1),
-  insert(A, 4, 4),
-  insert(A, 7, 7),
-  io:format("~p~n", [to_list(A)]),
-
-  delete(A, 7, 7),
-  io:format("~p~n", [to_list(A)]),
-
-  io:format("get=~p~n", [index_of_score(A, 5)]),
-  io:format("get=~p~n", [index_of_score(A, 6)]),
-  io:format("get=~p~n", [index_of_score(A, 15)]),
-
-  io:format("at=~p~n", [at(A, 1)]),
-  io:format("at=~p~n", [at(A, 5)]),
-  io:format("at=~p~n", [at(A, 6)]),
-
-  io:format("range=~p~n", [range(A, 1, 10)]),
-  io:format("range=~p~n", [range(A, 2, 3)]),
-  io:format("range=~p~n", [range(A, 8, 10)]),
-
-  io:format("range_with_score=~p~n", [range_with_score(A, 1, 10)]),
-  io:format("range_with_score=~p~n", [range_with_score(A, 2, 3)]),
-  io:format("range_with_score=~p~n", [range_with_score(A, 8, 10)]),
-
-  erlang:statistics(wall_clock),
-  loop_test(30*1000, A),
-  {_, Time} = erlang:statistics(wall_clock),
-  io:format("time=~p~n", [Time]),
-
-  io:format("range_by_score=~p~n", [range_by_score(A, -10, 10)]),
-  io:format("range_by_score=~p~n", [range_by_score(A, 2, 3)]),
-  io:format("range_by_score=~p~n", [range_by_score(A, 101, 10)]),
-
-  free(A).
-
-loop_test(0, _) ->
-  ok;
-loop_test(N, L) ->
-  case rand:uniform(500) < 300 of
-    true ->
-      insert(L, rand:uniform(100), rand:uniform(20));
-    _ ->
-      delete(L, rand:uniform(100), rand:uniform(20))
-  end,
-  loop_test(N - 1, L).
-
-
