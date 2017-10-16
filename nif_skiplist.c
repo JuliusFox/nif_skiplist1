@@ -353,6 +353,6 @@ static ErlNifFunc nif_funcs[] = {
         {"range_by_score", 3, range_by_score},
 };
 
-ERL_NIF_INIT(anif, nif_funcs, NULL, NULL, NULL, NULL)
+ERL_NIF_INIT(skiplist, nif_funcs, NULL, NULL, NULL, NULL)
 
 
