@@ -14,9 +14,13 @@
 // from 0 to n
 #define SKIPLIST_MAX_LEVEL 15
 #define LEVEL_SIZE (SKIPLIST_MAX_LEVEL+1)
+#define RAND_UNIFORM(x) (int)((double)rand() / RAND_MAX * (x))
 
 skiplist *skiplist_init(void)
 {
+    time_t t;
+    srand((unsigned)(time(&t)));
+
     skiplist *list = (skiplist *)imalloc(sizeof(skiplist));
     size_t forward_mem_size = sizeof(snode*) * (LEVEL_SIZE);
     snode *header = (snode *)imalloc(sizeof(struct snode));
@@ -38,8 +42,8 @@ skiplist *skiplist_init(void)
 static int rand_level()
 {
     int level = 0;
-//    while (rand() < RAND_MAX / 2 && level < SKIPLIST_MAX_LEVEL)
-    while (arc4random() < INT_MAX && level < SKIPLIST_MAX_LEVEL)
+    while (rand() < RAND_MAX / 2 && level < SKIPLIST_MAX_LEVEL)
+//    while (arc4random() < INT_MAX && level < SKIPLIST_MAX_LEVEL)
         level++;
     return level;
 }
@@ -115,12 +119,30 @@ int skiplist_update(skiplist *list, int score, int value, int old_score)
 
 // search score in skiplist.
 // set the struct with index and first node if exists, otherwise set index 0
-void skiplist_search(skiplist *list, int key, skiplist_search_ret *ret)
+void skiplist_search(skiplist *list, int score, skiplist_search_ret *ret)
 {
     snode *x = list->header;
-    int temp_width = 0;
+    int temp_width = 1;
     for (int i = list->level; i >= 0; i--) {
-        while (x->forward[i] && x->forward[i]->score < key) {
+        while (x->forward[i] && x->forward[i]->score < score) {
+            temp_width += x->width[i];
+            x = x->forward[i];
+        }
+    }
+    x = x->forward[0];
+
+    ret->index = temp_width;
+    ret->node = x;
+}
+
+// first index of score
+int skiplist_index_of_score(skiplist *list, int score)
+{
+    snode *x = list->header;
+    int temp_width = 1;
+    for (int i = list->level; i >= 0; i--) {
+        while (x->forward[i] && x->forward[i]->score < score) {
+
             temp_width += x->width[i];
             x = x->forward[i];
         }
@@ -128,13 +150,10 @@ void skiplist_search(skiplist *list, int key, skiplist_search_ret *ret)
     x = x->forward[0];
 
     // check if existed score
-    if (x && x->score == key) {
-        ret->index = temp_width + 1;
-        ret->node = x;
-    } else{
-        ret->index = 0;
-        ret->node = NULL;
+    if (x && x->score == score) {
+        return temp_width;
     }
+    return 0;
 }
 
 // search skiplist by index. Return the node if exists, otherwise NULL
@@ -329,6 +348,9 @@ static void skiplist_dump(skiplist *list)
 }
 
 void test_skiplist(void) {
+    time_t t;
+    srand((unsigned)(time(&t)));
+
     int arr[][2] = { {3, 1}, {3,2}, {6,6}, {9,9}, {3, 3}, {1, 1}, {4, 4}, {8, 8}, {7, 7}, {5,5}}, i;
 //    int arr[] = { 3, 6, 9}, i;
     skiplist_search_ret tempx;
@@ -352,11 +374,7 @@ void test_skiplist(void) {
 
     printf("search empty:--------------------\n");
     skiplist_search(list, 5, &tempx);
-    if (tempx.index > 0) {
-        printf("index = %d, value = %d\n", tempx.index, tempx.node->value);
-    } else {
-        printf("not fuound\n");
-    }
+    printf("index = %d\n", tempx.index);
 
     printf("Search by index:-----------\n");
     int indexes[] = { 11, 3, 10 };
@@ -379,11 +397,11 @@ void test_skiplist(void) {
     clock_t start, finish;
     start = clock();
     for (i = 0; i < 30*1000; ++i) {
-        if (arc4random() < UINT_MAX / 5 * 3) {
-            skiplist_insert(list, arc4random_uniform(100), arc4random_uniform(20));
+        if (rand() < RAND_MAX / 5 * 3) {
+            skiplist_insert(list, RAND_UNIFORM(100), RAND_UNIFORM(20));
         }
         else {
-            skiplist_delete(list, arc4random_uniform(100), arc4random_uniform(20));
+            skiplist_delete(list, RAND_UNIFORM(100), RAND_UNIFORM(20));
         }
     }
     finish = clock();
@@ -394,12 +412,7 @@ void test_skiplist(void) {
     int keys[] = { 0, 3, 7, 100, 11 };
 
     for (i = 0; i < sizeof(keys) / sizeof(keys[0]); i++) {
-        skiplist_search(list, keys[i], &tempx);
-        if (tempx.index > 0) {
-            printf("index = %d, score = %d, value = %d\n", tempx.index, keys[i], tempx.node->value);
-        } else {
-            printf("score = %d, not found\n", keys[i]);
-        }
+        printf("index = %d, score = %d\n", skiplist_index_of_score(list, keys[i]), keys[i]);
     }
 
     skiplist_free(list);

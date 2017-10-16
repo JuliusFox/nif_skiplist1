@@ -7,8 +7,8 @@
   free/1,
   insert/3, delete/3, update/4,
   to_list/1,
-  range/3, range_with_score/3,
-  get/2, at/2,
+  range/3, range_with_score/3, range_by_score/3,
+  index_of_score/2, at/2,
   size/1,
   te/0]).
 
@@ -36,7 +36,7 @@ to_list(_List) ->
 size(_List) ->
   erlang:nif_error(undef).
 
-get(_List, _Score) ->
+index_of_score(_List, _Score) ->
   erlang:nif_error(undef).
 
 at(_List, _Index) ->
@@ -46,6 +46,9 @@ range(_List, _Start, _Len) ->
   erlang:nif_error(undef).
 
 range_with_score(_List, _Start, _Len) ->
+  erlang:nif_error(undef).
+
+range_by_score(_List, _Score1, _Score2) ->
   erlang:nif_error(undef).
 
 te() ->
@@ -62,9 +65,9 @@ te() ->
   delete(A, 7, 7),
   io:format("~p~n", [to_list(A)]),
 
-  io:format("get=~p~n", [anif:get(A, 5)]),
-  io:format("get=~p~n", [anif:get(A, 6)]),
-  io:format("get=~p~n", [anif:get(A, 15)]),
+  io:format("get=~p~n", [anif:index_of_score(A, 5)]),
+  io:format("get=~p~n", [anif:index_of_score(A, 6)]),
+  io:format("get=~p~n", [anif:index_of_score(A, 15)]),
 
   io:format("at=~p~n", [at(A, 1)]),
   io:format("at=~p~n", [at(A, 5)]),
@@ -82,6 +85,10 @@ te() ->
   loop_test(30*1000, A),
   {_, Time} = erlang:statistics(wall_clock),
   io:format("time=~p~n", [Time]),
+
+  io:format("range_by_score=~p~n", [range_by_score(A, -10, 10)]),
+  io:format("range_by_score=~p~n", [range_by_score(A, 2, 3)]),
+  io:format("range_by_score=~p~n", [range_by_score(A, 101, 10)]),
 
   free(A).
 

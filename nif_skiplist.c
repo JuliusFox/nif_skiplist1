@@ -181,7 +181,8 @@ static ERL_NIF_TERM size1(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
     return res;
 }
 
-static ERL_NIF_TERM get(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+// first index of the score
+static ERL_NIF_TERM index_of_score(ErlNifEnv *env, int argc, const ERL_NIF_TERM *argv)
 {
     skiplist *list = get_pointer(env, argv[0]);
     if (!list)
@@ -191,19 +192,8 @@ static ERL_NIF_TERM get(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
     if (!enif_get_int(env, argv[1], &socre))
         return enif_make_badarg(env);
 
-    skiplist_search_ret res0;
-    skiplist_search(list, socre, &res0);
-    ERL_NIF_TERM res;
-
-    if (res0.index > 0) {
-        res = enif_make_tuple(
-                env,
-                2,
-                enif_make_int(env, res0.index),
-                enif_make_int(env, res0.node->value));
-    } else {
-        enif_make_existing_atom(env, "error", &res, ERL_NIF_LATIN1);
-    }
+    int res0 = skiplist_index_of_score(list, socre);
+    ERL_NIF_TERM res = enif_make_int(env, res0);
 
     return res;
 }
@@ -233,6 +223,40 @@ static ERL_NIF_TERM at(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
     }
 
     return res;
+}
+
+static ERL_NIF_TERM range_by_score(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+{
+    skiplist *list = get_pointer(env, argv[0]);
+    if (!list)
+        return enif_make_badarg(env);
+
+    int score1, score2;
+    if (!enif_get_int(env, argv[1], &score1))
+        return enif_make_badarg(env);
+    if (!enif_get_int(env, argv[2], &score2))
+        return enif_make_badarg(env);
+
+    skiplist_search_ret res0;
+    skiplist_search(list, score1, &res0);
+
+    ERL_NIF_TERM ret_list = enif_make_list(env, 0);
+    for (snode *node = res0.node; node && node->score <= score2; node = node->forward[0]) {
+        ret_list = enif_make_list_cell(env,
+                                       enif_make_tuple(env,
+                                                       2,
+                                                       enif_make_int(env, node->score),
+                                                       enif_make_int(env, node->value)),
+                                       ret_list);
+    }
+    ERL_NIF_TERM ret_list1;
+    enif_make_reverse_list(env, ret_list, &ret_list1);
+
+    return enif_make_tuple(
+            env,
+            2,
+            enif_make_int(env, res0.index),
+            ret_list1);
 }
 
 static ERL_NIF_TERM range_1(
@@ -318,13 +342,15 @@ static ErlNifFunc nif_funcs[] = {
         {"new", 0, new},
         {"free", 1, free1},
         {"insert", 3, insert},
+        {"update", 4, update},
         {"delete", 3, delete},
         {"to_list", 1, to_list},
         {"size", 1, size1},
-        {"get", 2, get},
+        {"index_of_score", 2, index_of_score},
         {"at", 2, at},
         {"range", 3, range},
-        {"range_with_score", 3, range_with_score}
+        {"range_with_score", 3, range_with_score},
+        {"range_by_score", 3, range_by_score},
 };
 
 ERL_NIF_INIT(anif, nif_funcs, NULL, NULL, NULL, NULL)

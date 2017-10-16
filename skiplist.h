@@ -43,7 +43,8 @@ void skiplist_free(skiplist *list);
 int skiplist_insert(skiplist *list, int score, int value);
 int skiplist_update(skiplist *list, int score, int value, int old_score);
 int skiplist_delete(skiplist *list, int score, int value);
-void skiplist_search(skiplist *list, int key, skiplist_search_ret *ret);
+void skiplist_search(skiplist *list, int score, skiplist_search_ret *ret);
+int skiplist_index_of_score(skiplist *list, int score);
 snode *skiplist_at(skiplist *list, int index);
 
 
