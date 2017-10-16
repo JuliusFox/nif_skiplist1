@@ -13,7 +13,7 @@ LINKFLAGS = -undefined dynamic_lookup -dynamiclib
 endif
 
 ERLROOT = /opt/local/lib/erlang
-#/usr/local/erl/lib/erlang/
+#ERLROOT = /usr/local/erl/lib/erlang/
 
 objects = skiplist.o nif_skiplist.o
 OUTPUT_NIF = nif_skiplist.so

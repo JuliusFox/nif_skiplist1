@@ -1,4 +1,4 @@
--module(anif).
+-module(skiplist).
 -author("fox").
 
 %% API
@@ -10,7 +10,7 @@
   range/3, range_with_score/3, range_by_score/3,
   index_of_score/2, at/2,
   size/1,
-  te/0]).
+  test/0]).
 
 init() ->
   erlang:load_nif("./nif_skiplist", 0).
@@ -51,7 +51,7 @@ range_with_score(_List, _Start, _Len) ->
 range_by_score(_List, _Score1, _Score2) ->
   erlang:nif_error(undef).
 
-te() ->
+test() ->
   init(),
   A = new(),
   insert(A, 10, 10),
@@ -65,9 +65,9 @@ te() ->
   delete(A, 7, 7),
   io:format("~p~n", [to_list(A)]),
 
-  io:format("get=~p~n", [anif:index_of_score(A, 5)]),
-  io:format("get=~p~n", [anif:index_of_score(A, 6)]),
-  io:format("get=~p~n", [anif:index_of_score(A, 15)]),
+  io:format("get=~p~n", [index_of_score(A, 5)]),
+  io:format("get=~p~n", [index_of_score(A, 6)]),
+  io:format("get=~p~n", [index_of_score(A, 15)]),
 
   io:format("at=~p~n", [at(A, 1)]),
   io:format("at=~p~n", [at(A, 5)]),
