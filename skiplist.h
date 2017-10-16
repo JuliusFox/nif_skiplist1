@@ -17,11 +17,15 @@
 #define ifree free
 #endif
 
+typedef int vtype;
+
 typedef struct snode {
     int score;
     int value;
-    int *width;
-    struct snode **forward;
+    struct skiplistLevel {
+        struct snode *forward;
+        unsigned int span;
+    } level[];
 } snode;
 
 typedef struct skiplist {
@@ -40,9 +44,9 @@ void test_skiplist(void);
 // functions
 skiplist *skiplist_init(void);
 void skiplist_free(skiplist *list);
-int skiplist_insert(skiplist *list, int score, int value);
-int skiplist_update(skiplist *list, int score, int value, int old_score);
-int skiplist_delete(skiplist *list, int score, int value);
+int skiplist_insert(skiplist *list, int score, vtype value);
+int skiplist_update(skiplist *list, int score, vtype value, int old_score);
+int skiplist_delete(skiplist *list, int score, vtype value);
 void skiplist_search(skiplist *list, int score, skiplist_search_ret *ret);
 int skiplist_index_of_score(skiplist *list, int score);
 snode *skiplist_at(skiplist *list, int index);

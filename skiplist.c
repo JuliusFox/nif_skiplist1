@@ -16,23 +16,27 @@
 #define LEVEL_SIZE (SKIPLIST_MAX_LEVEL+1)
 #define RAND_UNIFORM(x) (int)((double)rand() / RAND_MAX * (x))
 
+/* Create a skiplist node with the specified number of levels. */
+snode *skiplistCreateNode(int level, int score, vtype value) {
+    snode *zn =
+            (snode *)icalloc(sizeof(*zn)+level*sizeof(struct skiplistLevel));
+    zn->score = score;
+    zn->value = value;
+    return zn;
+}
+
 skiplist *skiplist_init(void)
 {
     time_t t;
     srand((unsigned)(time(&t)));
 
-    skiplist *list = (skiplist *)imalloc(sizeof(skiplist));
-    size_t forward_mem_size = sizeof(snode*) * (LEVEL_SIZE);
-    snode *header = (snode *)imalloc(sizeof(struct snode));
-    list->header = header;
-    header->score = INT_MAX;
-    header->value = INT_MAX;
-    header->width = (int *)imalloc(sizeof(int) * LEVEL_SIZE);
+    snode *header = skiplistCreateNode(LEVEL_SIZE, INT_MAX, INT_MAX);
     for (int i = 0; i < LEVEL_SIZE; ++i) {
-        header->width[i] = 1;
+        header->level[i].span = 1;
     }
-    header->forward = (snode **)icalloc(forward_mem_size);
 
+    skiplist *list = (skiplist *)imalloc(sizeof(skiplist));
+    list->header = header;
     list->level = 0;
     list->size = 0;
 
@@ -49,17 +53,17 @@ static int rand_level()
 }
 
 // insert score,node into a skiplist, return 0
-int skiplist_insert(skiplist *list, int score, int value)
+int skiplist_insert(skiplist *list, int score, vtype value)
 {
     snode **update = (snode **)imalloc(sizeof(snode*) * (list->level + 1));
-    int *fore_width = (int *)imalloc(sizeof(int) * (list->level + 1));
+    unsigned int *fore_width = (unsigned int *)imalloc(sizeof(unsigned int) * (list->level + 1));
     snode *x = list->header;
     int i;
     for (i = list->level; i >= 0; i--) {
         fore_width[i] = 0;
-        while (x->forward[i] && x->forward[i]->score <= score) {
-            fore_width[i] += x->width[i];
-            x = x->forward[i];
+        while (x->level[i].forward && x->level[i].forward->score <= score) {
+            fore_width[i] += x->level[i].span;
+            x = x->level[i].forward;
         }
         update[i] = x;
     }
@@ -68,41 +72,37 @@ int skiplist_insert(skiplist *list, int score, int value)
     int level = rand_level();
     list->size = list->size+1;
 
-    x = (snode *)imalloc(sizeof(snode));
-    x->score = score;
-    x->value = value;
-    x->forward = (snode **)imalloc(sizeof(snode*) * (level + 1));
-    x->width = (int *)imalloc(sizeof(int) * (level + 1));
+    x = skiplistCreateNode(level+1, score, value);
 
     // the lowest layer is one by one
-    x->forward[0] = update[0]->forward[0];
-    x->width[0] = 1;
-    update[0]->forward[0] = x;
+    x->level[0].forward = update[0]->level[0].forward;
+    x->level[0].span = 1;
+    update[0]->level[0].forward = x;
 
-    int temp_width;
+    unsigned int temp_width;
     for (i = 1; i <= (list->level < level ? list->level : level); i++) {
-        temp_width = fore_width[i-1] + update[i-1]->width[i-1];
-        x->width[i] = update[i]->width[i] + 1 - temp_width;
-        x->forward[i] = update[i]->forward[i];
-        update[i]->forward[i] = x;
-        update[i]->width[i] = temp_width;
+        temp_width = fore_width[i-1] + update[i-1]->level[i-1].span;
+        x->level[i].forward = update[i]->level[i].forward;
+        x->level[i].span = update[i]->level[i].span + 1 - temp_width;
+        update[i]->level[i].forward = x;
+        update[i]->level[i].span = temp_width;
     }
 
     if (level > list->level) {
         // complete the new level
-        temp_width = fore_width[list->level] + update[list->level]->width[list->level];
+        temp_width = fore_width[list->level] + update[list->level]->level[list->level].span;
         for (i = list->level+1; i <= level; i++) {
-            list->header->width[i] = temp_width;
-            list->header->forward[i] = x;
-            x->forward[i] = NULL;
-            x->width[i] = list->size + 1 - temp_width;
+            list->header->level[i].span = temp_width;
+            list->header->level[i].forward = x;
+            x->level[i].forward = NULL;
+            x->level[i].span = list->size + 1 - temp_width;
         }
         list->level = level;
     }
     else {
         // complete the unreached level
         for (; i <= list->level; ++i) {
-            update[i]->width[i]++;
+            update[i]->level[i].span++;
         }
     }
 
@@ -111,7 +111,7 @@ int skiplist_insert(skiplist *list, int score, int value)
     return 0;
 }
 
-int skiplist_update(skiplist *list, int score, int value, int old_score)
+int skiplist_update(skiplist *list, int score, vtype value, int old_score)
 {
     skiplist_delete(list, old_score, value);
     return skiplist_insert(list, score, value);
@@ -124,12 +124,12 @@ void skiplist_search(skiplist *list, int score, skiplist_search_ret *ret)
     snode *x = list->header;
     int temp_width = 1;
     for (int i = list->level; i >= 0; i--) {
-        while (x->forward[i] && x->forward[i]->score < score) {
-            temp_width += x->width[i];
-            x = x->forward[i];
+        while (x->level[i].forward && x->level[i].forward->score < score) {
+            temp_width += x->level[i].span;
+            x = x->level[i].forward;
         }
     }
-    x = x->forward[0];
+    x = x->level[0].forward;
 
     ret->index = temp_width;
     ret->node = x;
@@ -141,13 +141,13 @@ int skiplist_index_of_score(skiplist *list, int score)
     snode *x = list->header;
     int temp_width = 1;
     for (int i = list->level; i >= 0; i--) {
-        while (x->forward[i] && x->forward[i]->score < score) {
+        while (x->level[i].forward && x->level[i].forward->score < score) {
 
-            temp_width += x->width[i];
-            x = x->forward[i];
+            temp_width += x->level[i].span;
+            x = x->level[i].forward;
         }
     }
-    x = x->forward[0];
+    x = x->level[0].forward;
 
     // check if existed score
     if (x && x->score == score) {
@@ -161,13 +161,13 @@ snode *skiplist_at(skiplist *list, int index)
 {
     snode *x = list->header;
     for (int i = list->level; i >= 0; i--) {
-        while (x->forward[i]) {
-            if (x->width[i] == index) {
-                return x->forward[i];
+        while (x->level[i].forward) {
+            if (x->level[i].span == index) {
+                return x->level[i].forward;
             }
-            if (x->width[i] < index) {
-                index -= x->width[i];
-                x = x->forward[i];
+            if (x->level[i].span < index) {
+                index -= x->level[i].span;
+                x = x->level[i].forward;
             }
             else {
                 break;
@@ -181,14 +181,12 @@ snode *skiplist_at(skiplist *list, int index)
 static void skiplist_node_free(snode *x)
 {
     if (x) {
-        ifree(x->forward);
-        ifree(x->width);
         ifree(x);
     }
 }
 
 // delete by score,node. Return 0 if success, 1 if fail.
-int skiplist_delete(skiplist *list, int score, int value)
+int skiplist_delete(skiplist *list, int score, vtype value)
 {
     int i;
     snode **update = (snode **)imalloc(sizeof(snode*) * (list->level + 1));
@@ -197,13 +195,13 @@ int skiplist_delete(skiplist *list, int score, int value)
     // find every level before the specified node
     for (i = list->level; i >= 0; --i) {
         while (1) {
-            if (!(x->forward[i]) || x->forward[i]->score > score) {
+            if (!(x->level[i].forward) || x->level[i].forward->score > score) {
                 update[i] = x;
                 break;
             }
 
-            if (x->forward[i]->score < score) {
-                x = x->forward[i];
+            if (x->level[i].forward->score < score) {
+                x = x->level[i].forward;
                 continue;
             }
 
@@ -211,17 +209,17 @@ int skiplist_delete(skiplist *list, int score, int value)
             int j;
             update[i] = x;
             for (j = i-1; j >= 0; --j) {
-                while (x->forward[j]->score < score)
-                    x = x->forward[j];
+                while (x->level[j].forward->score < score)
+                    x = x->level[j].forward;
 
                 update[j] = x;
             }
-            x = x->forward[0];
+            x = x->level[0].forward;
             snode *x_start_search = x;
 
             // find the first node with same score and node
             while (x && x->value != value && x->score == score) {
-                x = x->forward[0];
+                x = x->level[0].forward;
             }
             if (x && x->score == score) {
                 // now x is the node to find
@@ -239,21 +237,21 @@ int skiplist_delete(skiplist *list, int score, int value)
                 {
                     if (j) {
                         update[i] = x_start_search;
-                        iter = x_start_search->forward[0];
+                        iter = x_start_search->level[0].forward;
                     } else{
                         iter = x_start_search;
                     }
 
                     while (iter != x) {
-                        if (iter == update[i]->forward[i]) {
+                        if (iter == update[i]->level[i].forward) {
                             j = 1;
                             x_start_search = iter;
-                            iter = iter->forward[0];
-                            update[i] = update[i]->forward[i];
+                            iter = iter->level[0].forward;
+                            update[i] = update[i]->level[i].forward;
                             continue;
                         }
 
-                        iter = iter->forward[0];
+                        iter = iter->level[0].forward;
                     }
                 }
                 i = 0;
@@ -273,16 +271,16 @@ int skiplist_delete(skiplist *list, int score, int value)
         return 1;
     }
 
-    for (i = 0; i <= list->level && update[i]->forward[i] == x; i++) {
-        update[i]->forward[i] = x->forward[i];
-        update[i]->width[i] += x->width[i] - 1;
+    for (i = 0; i <= list->level && update[i]->level[i].forward == x; i++) {
+        update[i]->level[i].forward = x->level[i].forward;
+        update[i]->level[i].span += x->level[i].span - 1;
     }
     for (; i <= list->level; i++) {
-        --(update[i]->width[i]);
+        --(update[i]->level[i].span);
     }
     skiplist_node_free(x);
 
-    while (list->level > 0 && list->header->forward[list->level] == NULL)
+    while (list->level > 0 && list->header->level[list->level].forward == NULL)
         list->level--;
     list->size--;
 
@@ -293,9 +291,9 @@ int skiplist_delete(skiplist *list, int score, int value)
 // ifree the skiplist
 void skiplist_free(skiplist *list)
 {
-    snode *current_node = list->header->forward[0];
+    snode *current_node = list->header->level[0].forward;
     while(current_node != NULL) {
-        snode *next_node = current_node->forward[0];
+        snode *next_node = current_node->level[0].forward;
         skiplist_node_free(current_node);
         current_node = next_node;
     }
@@ -309,22 +307,22 @@ static void skiplist_dump(skiplist *list)
     memset(width, 0, sizeof(int) * (list->level + 1) * list->size);
     snode **tempn = (snode **)imalloc(sizeof(snode*) * (list->level + 1));
     int i = 0, j;
-    snode *x = list->header->forward[0];
+    snode *x = list->header->level[0].forward;
 
     for (j = 0; j <= list->level; ++j) {
-        tempn[j] = list->header->forward[j];
+        tempn[j] = list->header->level[j].forward;
     }
 
     while (tempn[0] != NULL) {
         for (j = 1; j <= list->level; ++j) {
             if (tempn[j] == tempn[0]) {
-                width[list->size * j + i] = tempn[j]->width[j];
-                tempn[j] = tempn[j]->forward[j];
+                width[list->size * j + i] = tempn[j]->level[j].span;
+                tempn[j] = tempn[j]->level[j].forward;
             } else {
                 break;
             }
         }
-        tempn[0] = tempn[0]->forward[0];
+        tempn[0] = tempn[0]->level[0].forward;
         ++i;
     }
 
@@ -339,7 +337,7 @@ static void skiplist_dump(skiplist *list)
     }
     while (x != NULL) {
         printf("%d:%d->", x->score, x->value);
-        x = x->forward[0];
+        x = x->level[0].forward;
     }
     printf("NIL\n");
 

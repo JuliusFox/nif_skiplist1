@@ -14,6 +14,9 @@
 static skiplist **p_array;
 static size_t p_array_size = 0;
 
+#define enif_get_value enif_get_int
+#define enif_make_value enif_make_int
+
 // store a new pointer
 int store_new_pointer(skiplist *p)
 {
@@ -90,10 +93,11 @@ static ERL_NIF_TERM insert(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
     if (!list)
         return enif_make_badarg(env);
 
-    int score, value;
+    int score;
+    vtype value;
     if (!enif_get_int(env, argv[1], &score))
         return enif_make_badarg(env);
-    if (!enif_get_int(env, argv[2], &value))
+    if (!enif_get_value(env, argv[2], &value))
         return enif_make_badarg(env);
 
     int res0 = skiplist_insert(list, score, value);
@@ -108,10 +112,11 @@ static ERL_NIF_TERM update(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
     if (!list)
         return enif_make_badarg(env);
 
-    int score, value, old_score;
+    int score, old_score;
+    vtype value;
     if (!enif_get_int(env, argv[1], &score))
         return enif_make_badarg(env);
-    if (!enif_get_int(env, argv[2], &value))
+    if (!enif_get_value(env, argv[2], &value))
         return enif_make_badarg(env);
     if (!enif_get_int(env, argv[3], &old_score))
         return enif_make_badarg(env);
@@ -128,10 +133,11 @@ static ERL_NIF_TERM delete(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
     if (!list)
         return enif_make_badarg(env);
 
-    int socre, value;
+    int socre;
+    vtype value;
     if (!enif_get_int(env, argv[1], &socre))
         return enif_make_badarg(env);
-    if (!enif_get_int(env, argv[2], &value))
+    if (!enif_get_value(env, argv[2], &value))
         return enif_make_badarg(env);
 
     int res0 = skiplist_delete(list, socre, value);
@@ -146,13 +152,13 @@ static ERL_NIF_TERM to_list(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
     if (!list)
         return enif_make_badarg(env);
 
-    snode *x = list->header->forward[0];
+    snode *x = list->header->level[0].forward;
     snode **nodes = (snode **)malloc(sizeof(snode *) * (list->size + 1));
 
     while (x) {
         *nodes = x;
         ++nodes;
-        x = x->forward[0];
+        x = x->level[0].forward;
     }
 
     ERL_NIF_TERM res = enif_make_list(env, 0);
@@ -162,7 +168,7 @@ static ERL_NIF_TERM to_list(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
                 env,
                 2,
                 enif_make_int(env, (*nodes)->score),
-                enif_make_int(env, (*nodes)->value));
+                enif_make_value(env, (*nodes)->value));
         res = enif_make_list_cell(env, item, res);
     }
 
@@ -217,7 +223,7 @@ static ERL_NIF_TERM at(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
                 env,
                 2,
                 enif_make_int(env, x->score),
-                enif_make_int(env, x->value));
+                enif_make_value(env, x->value));
     } else {
         enif_make_existing_atom(env, "error", &res, ERL_NIF_LATIN1);
     }
@@ -241,12 +247,12 @@ static ERL_NIF_TERM range_by_score(ErlNifEnv* env, int argc, const ERL_NIF_TERM 
     skiplist_search(list, score1, &res0);
 
     ERL_NIF_TERM ret_list = enif_make_list(env, 0);
-    for (snode *node = res0.node; node && node->score <= score2; node = node->forward[0]) {
+    for (snode *node = res0.node; node && node->score <= score2; node = node->level[0].forward) {
         ret_list = enif_make_list_cell(env,
                                        enif_make_tuple(env,
                                                        2,
                                                        enif_make_int(env, node->score),
-                                                       enif_make_int(env, node->value)),
+                                                       enif_make_value(env, node->value)),
                                        ret_list);
     }
     ERL_NIF_TERM ret_list1;
@@ -289,7 +295,7 @@ static ERL_NIF_TERM range_1(
     for (n = 0; n < alloc_size; n++) {
         *nodes = x;
         ++nodes;
-        x = x->forward[0];
+        x = x->level[0].forward;
     }
 
     for (n = 0; n < alloc_size; n++) {
@@ -305,7 +311,7 @@ static ERL_NIF_TERM range_1(
 inline static ERL_NIF_TERM range_make_item(ErlNifEnv* env, snode *node);
 static ERL_NIF_TERM range_make_item(ErlNifEnv* env, snode *node)
 {
-    return enif_make_int(env, node->value);
+    return enif_make_value(env, node->value);
 }
 
 /* int p_list: identification of skiplist
@@ -325,7 +331,7 @@ static ERL_NIF_TERM range_with_score_make_item(ErlNifEnv* env, snode *node)
             env,
             2,
             enif_make_int(env, node->score),
-            enif_make_int(env, node->value));
+            enif_make_value(env, node->value));
 }
 
 /* int p_list: identification of skiplist
