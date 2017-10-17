@@ -321,7 +321,7 @@ static ERL_NIF_TERM range_make_item(ErlNifEnv* env, snode *node)
  */
 static ERL_NIF_TERM range(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
-    return range_1(env, argv, &range_make_item);
+    return range_1(env, argv, range_make_item);
 }
 
 inline static ERL_NIF_TERM range_with_score_make_item(ErlNifEnv* env, snode *node);
@@ -341,7 +341,7 @@ static ERL_NIF_TERM range_with_score_make_item(ErlNifEnv* env, snode *node)
  */
 static ERL_NIF_TERM range_with_score(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
-    return range_1(env, argv, &range_with_score_make_item);
+    return range_1(env, argv, range_with_score_make_item);
 }
 
 static ErlNifFunc nif_funcs[] = {
